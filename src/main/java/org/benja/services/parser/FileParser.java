@@ -1,8 +1,10 @@
 package org.benja.services.parser;
 
+import org.benja.Main;
 import org.benja.model.Transaction;
 
 import java.io.File;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -39,4 +41,20 @@ public class FileParser {
             return List.of(); // return empty list in case of an error
         }
     }
+
+    private static String getDirectory() throws Exception {
+//        return System.getProperty("user.dir");
+
+        // This is the debugging code
+        URL res = Main.class.getClassLoader().getResource("");
+        if (res == null) {
+            throw new Exception("Directory not found!");
+        }
+        return res.getPath();
+    }
+
+    public List<Transaction> parseFiles() throws Exception {
+        return readFilesFromDirectory(getDirectory());
+    }
+
 }
