@@ -4,8 +4,14 @@ import org.benja.model.Transaction;
 import org.benja.model.TransactionGroup;
 import org.benja.services.TransactionGrouper;
 import org.benja.services.parser.FileParser;
+import org.benja.services.validator.EndBalanceValidator;
+import org.benja.services.validator.NoValidationErrorsValidator;
+import org.benja.services.validator.ReferenceNumberValidator;
+import org.benja.services.validator.ValidatingFunction;
 
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class Main {
@@ -21,14 +27,14 @@ public class Main {
     }
 
     private static String getDirectory() throws Exception {
-        return System.getProperty("user.dir");
+//        return System.getProperty("user.dir");
 
         // This is the debugging code
-//        URL res = Main.class.getClassLoader().getResource("");
-//        if (res == null) {
-//            throw new Exception("Directory not found!");
-//        }
-//        return res.getPath();
+        URL res = Main.class.getClassLoader().getResource("");
+        if (res == null) {
+            throw new Exception("Directory not found!");
+        }
+        return res.getPath();
     }
 
     private static List<Transaction> parseFiles(String dirPath) {
@@ -38,7 +44,9 @@ public class Main {
 
     private static void printTransactionDetails(List<Transaction> transactions) {
         TransactionGrouper grouper = new TransactionGrouper();
-
+        final List<ValidatingFunction<TransactionGroup>> validators = new ArrayList<>(
+                Arrays.asList(new ReferenceNumberValidator(), new EndBalanceValidator(), new NoValidationErrorsValidator())
+        );
         // setup groups
         List<TransactionGroup> transactionGroups = grouper.groupTransactionsByAccount(transactions);
         int transactionsSize = transactions.isEmpty() ? 0 : transactions.size();
@@ -49,26 +57,8 @@ public class Main {
         System.out.println("A total of " + transactionsSize + " were parsed successfully");
         System.out.println("Of them, " + invalidReferenceTransactionsSize + " had invalid references");
 
-        for (TransactionGroup aTransactionGroup : transactionGroups) {
-            System.out.println("\nTransaction Group for IBAN: " + aTransactionGroup.accountNumber());
-            System.out.println("Contains " + aTransactionGroup.allTransactions().size() + " transaction(s)");
-
-            if (!aTransactionGroup.invalidReferenceTransactions().isEmpty()) {
-                System.out.println("The following transactions have invalid reference numbers:");
-                aTransactionGroup.invalidReferenceTransactions().forEach(invalidReferenceNumber -> {
-                    System.out.println("Reference number: " + invalidReferenceNumber.reference());
-                    System.out.println("Description: " + invalidReferenceNumber.description());
-                });
-            } else if (!aTransactionGroup.invalidEndBalanceTransactions().isEmpty()){
-                System.out.println("The following transactions have invalid end balances:");
-                aTransactionGroup.invalidEndBalanceTransactions().forEach(invalidEndBalance -> {
-                    System.out.println("Reference number: " + invalidEndBalance.reference());
-                    System.out.println("Current end balance: " + invalidEndBalance.endBalance());
-                    System.out.println("Expected end balance: " + grouper.calculateEndBalance(invalidEndBalance));
-                });
-            } else {
-                System.out.println("No validation errors for these transaction(s).");
-            }
+        for (ValidatingFunction<TransactionGroup> validator : validators) {
+            validator.validate(transactionGroups);
         }
     }
 }
